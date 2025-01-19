@@ -36,7 +36,7 @@ This configuration dynamically adapts features to accommodate the following cons
    Open a terminal and run:
    
    #+begin_src bash
-   git clone https://github.com/captainflasmr/vintage-to-modern-emacs-config.git
+   git clone git@github.com:captainflasmr/Emacs-vintage_modern.git
    #+end_src
    
 * Usage
