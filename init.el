@@ -28,7 +28,7 @@
 (define-key my-jump-keymap (kbd "h") (lambda () (interactive) (find-file "~")))
 (define-key my-jump-keymap (kbd "r") (lambda () (interactive) (switch-to-buffer "*scratch*")))
 ;;
-(global-set-key (kbd "M-a") #'my/quick-window-jump)
+(global-set-key (kbd "M-;") #'my/quick-window-jump)
 
 ;;
 ;; -> keys-visual-core
@@ -72,6 +72,7 @@
 (global-set-key (kbd "C-x x g") #'revert-buffer)
 (global-set-key (kbd "C-x x t") #'toggle-truncate-lines)
 (global-set-key (kbd "C-;") #'my/comment-or-uncomment)
+(global-set-key (kbd "M-a") #'delete-other-windows)
 (global-set-key (kbd "M-0") 'delete-window)
 (global-set-key (kbd "M-1") #'delete-other-windows)
 (global-set-key (kbd "M-2") #'split-window-vertically)
@@ -216,15 +217,6 @@
 (setq org-startup-indented t)
 (setq org-use-speed-commands t)
 (setq org-hide-leading-stars t)
-(setq org-todo-keywords
-      '((sequence "TODO" "DOING" "ORDR" "SENT" "|" "DONE" "CANCELLED")))
-(setq org-todo-keyword-faces
-      '(("TODO" . "#ee6273")
-        ("DOING" . "#6e8baa")
-        ("ORDR" . "#c96eee")
-        ("SENT" . "#c86bee")
-        ("DONE" . "#77aa66")
-        ("CANCELLED" . "#426b3e")))
 (setq org-goto-interface 'outline-path-completionp)
 (setq org-outline-path-complete-in-steps nil)
 ;;
@@ -256,32 +248,6 @@
 (set-fringe-mode '(20 . 20))
 (setq bookmark-set-fringe-mark nil)
 (setq bookmark-fringe-mark nil)
-
-;;
-;; -> imenu-core
-;;
-(defun my-imenu-create-index ()
-  "Create an index using definitions starting with ';; ->'."
-  (let ((index-alist '())
-        (regex "^;;[[:space:]]->\\(.+\\)$"))
-    (save-excursion
-      (goto-char (point-min))
-      (while (re-search-forward regex nil t)
-        (let ((name (s-trim (match-string 1)))
-              (pos (match-beginning 0)))
-          (push (cons name (set-marker (make-marker) pos)) index-alist))))
-    (setq imenu--index-alist (sort
-                              index-alist
-                              (lambda (a b)
-                                (string< (car a) (car b)))))))
-
-(add-hook 'emacs-lisp-mode-hook
-          (lambda ()
-            (setq truncate-lines t)
-            (setq imenu-sort-function 'imenu--sort-by-name)
-            (setq imenu-generic-expression
-                  '((nil "^;;[[:space:]]+-> \\(.*\\)$" 1)))
-            (imenu-add-menubar-index)))
 
 ;;
 ;; -> recentf-core
@@ -402,16 +368,30 @@ If there are only two windows, jump directly to the other window."
 (setq ispell-local-dictionary "en_GB")
 (setq ispell-program-name "hunspell")
 (setq dictionary-default-dictionary "*")
-(setq dictionary-server "dict.org")
-(setq dictionary-use-single-buffer t)
-(define-prefix-command 'my-spell-prefix-map)
-(global-set-key (kbd "C-c s") 'my-spell-prefix-map)
-(global-set-key (kbd "C-c s s") #'(lambda()(interactive)
-                                    (flyspell-buffer)
-                                    (call-interactively 'flyspell-mode)))
-(global-set-key (kbd "C-c s d") #'dictionary-lookup-definition)
+(defun spelling-menu ()
+  "Menu for spelling."
+  (interactive)
+  (let ((key (read-key
+              (propertize
+               "------- Spelling [q] Quit: -------
+Run        [s] Spelling
+Dictionary [l] Check"
+               'face 'minibuffer-prompt))))
+    (pcase key
+      ;; Spelling
+      (?s (progn
+            (flyspell-buffer)
+            (call-interactively 'flyspell-mode)))
+      (?l (call-interactively 'ispell-word))
+      ;; Quit
+      (?q (message "Quit Build menu."))
+      (?\C-g (message "Quit Build menu."))
+      ;; Default Invalid Key
+      (_ (message "Invalid key: %c" key)))))
+;;
+(global-set-key (kbd "C-c s") #'spelling-menu)
 (global-set-key (kbd "C-0") #'ispell-word)
-
+;;
 (global-set-key (kbd "M-g o") #'org-goto)
 (setq org-goto-interface 'outline-path-completionp)
 (setq org-outline-path-complete-in-steps nil)
@@ -419,24 +399,6 @@ If there are only two windows, jump directly to the other window."
 (global-set-key (kbd "C-c ,") 'find-file-at-point)
 (define-key dired-mode-map (kbd "C") 'my/rsync)
 ;;
-(defun my/rsync (dest)
-  "Rsync copy."
-  (interactive
-    (list
-      (expand-file-name (read-file-name "rsync to:"
-                          (dired-dwim-target-directory)))))
-  (let ((files (dired-get-marked-files nil current-prefix-arg))
-         (command "rsync -arvz --progress --no-g "))
-    (dolist (file files)
-      (setq command (concat command (shell-quote-argument file) " ")))
-    (setq command (concat command (shell-quote-argument dest)))
-    (async-shell-command command "*rsync*")
-    (dired-unmark-all-marks)
-    (other-window 1)
-    (sleep-for 1)
-    (dired-revert)
-    (revert-buffer nil t nil)))
-
 ;; ----------------------------------------------------------------------
 ;; Emacs-Init
 ;; ----------------------------------------------------------------------
@@ -506,7 +468,7 @@ If there are only two windows, jump directly to the other window."
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(default ((t (:background "#121623" :foreground "#aaaaaa" :weight normal :height 120 :family "Monospace"))))
- '(fringe ((((class color) (background dark)) (:background "#293136"))))
+ '(fringe ((((class color) (background dark)) (:background "#121623"))))
  '(mode-line ((((class color) (min-colors 88)) (:background "#cccccc" :foreground "#000000"))))
  '(vertical-border ((nil (:foreground "#444444")))))
 
